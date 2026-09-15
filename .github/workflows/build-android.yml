@@ -16,25 +16,20 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install existing dependencies
+      - name: Install dependencies
         run: npm install
 
       - name: Install Capacitor
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Create Capacitor configuration
         run: |
-          cat > capacitor.config.ts <<'EOF'
-          import type { CapacitorConfig } from '@capacitor/cli';
-
-          const config: CapacitorConfig = {
-            appId: 'com.restaurant.slipapp',
-            appName: 'Restaurant POS',
-            webDir: 'dist'
-          };
-
-          export default config;
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.restaurant.slipapp",
+            "appName": "Restaurant POS",
+            "webDir": "dist"
+          }
           EOF
 
       - name: Build web application
