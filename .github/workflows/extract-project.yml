@@ -19,7 +19,7 @@ jobs:
           rm -rf extracted
           mkdir extracted
 
-          unzip -q Restaurant-Slip-App.zip -d extracted
+          unzip -q restaurant-slip-app-project.zip -d extracted
 
           echo "ZIP contents:"
           find extracted -maxdepth 3 -type f | head -100
