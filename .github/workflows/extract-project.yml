@@ -1,0 +1,30 @@
+name: Extract Restaurant POS Project
+
+on:
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract ZIP
+        run: |
+          mkdir extracted
+          unzip -q Restaurant-Slip-App.zip -d extracted
+          cp -r extracted/*/* . 2>/dev/null || cp -r extracted/* .
+          rm -rf extracted
+
+      - name: Commit extracted project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Extract Restaurant POS project" || echo "No changes to commit"
+          git push
