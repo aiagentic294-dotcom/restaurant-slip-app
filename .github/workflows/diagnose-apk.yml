@@ -1,0 +1,122 @@
+name: Diagnose Restaurant POS APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Capacitor
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Create Capacitor configuration
+        run: |
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.restaurant.slipapp",
+            "appName": "Restaurant POS",
+            "webDir": "dist"
+          }
+          EOF
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Find Android build tools
+        run: |
+          AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+
+          echo "AAPT2=$AAPT2" >> "$GITHUB_ENV"
+          echo "APKSIGNER=$APKSIGNER" >> "$GITHUB_ENV"
+
+          echo "AAPT2: $AAPT2"
+          echo "APKSIGNER: $APKSIGNER"
+
+      - name: Inspect APK
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          echo "========================================"
+          echo "APK FILE INFORMATION"
+          echo "========================================"
+          ls -lh "$APK"
+          file "$APK"
+
+          echo ""
+          echo "========================================"
+          echo "APK PACKAGE / SDK / ARCHITECTURE"
+          echo "========================================"
+          "$AAPT2" dump badging "$APK"
+
+          echo ""
+          echo "========================================"
+          echo "APK SIGNATURE"
+          echo "========================================"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+          echo ""
+          echo "========================================"
+          echo "ANDROID MANIFEST"
+          echo "========================================"
+          "$AAPT2" dump permissions "$APK"
+
+      - name: Create diagnostic report
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          {
+            echo "RESTAURANT POS APK DIAGNOSTIC REPORT"
+            echo "===================================="
+            echo ""
+            echo "APK FILE:"
+            ls -lh "$APK"
+            file "$APK"
+
+            echo ""
+            echo "PACKAGE / SDK / ARCHITECTURE:"
+            "$AAPT2" dump badging "$APK"
+
+            echo ""
+            echo "SIGNATURE:"
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
+
+            echo ""
+            echo "PERMISSIONS:"
+            "$AAPT2" dump permissions "$APK"
+          } > apk-diagnostic-report.txt
+
+      - name: Upload diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-pos-apk-diagnostic
+          path: apk-diagnostic-report.txt
