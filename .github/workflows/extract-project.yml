@@ -1,4 +1,4 @@
-name: Extract Restaurant POS Project
+name: Extract Final Restaurant POS Project
 
 on:
   workflow_dispatch:
@@ -14,14 +14,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract ZIP
+      - name: Extract final ZIP
         run: |
           rm -rf extracted
           mkdir extracted
 
-          unzip -q restaurant-slip-app-project.zip -d extracted
+          unzip -q restaurant-slip-app-final.zip -d extracted
 
-          echo "ZIP contents:"
+          echo "Final ZIP contents:"
           find extracted -maxdepth 3 -type f | head -100
 
           if [ -f extracted/package.json ]; then
@@ -33,13 +33,23 @@ jobs:
 
           rm -rf extracted
 
-      - name: Commit extracted project
+      - name: Verify final App.jsx
+        run: |
+          echo "Checking App.jsx..."
+          wc -l src/App.jsx
+          grep -q "function usePrinter" src/App.jsx
+          grep -q "function PrinterSettingsScreen" src/App.jsx
+          grep -q "function PrinterStatus" src/App.jsx
+          grep -q "function StatusDot" src/App.jsx
+          echo "Printer code verification PASSED"
+
+      - name: Commit final project
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add .
 
-          git commit -m "Extract Restaurant POS project" || echo "No changes to commit"
+          git commit -m "Restore final Restaurant POS project" || echo "No changes to commit"
 
           git push
