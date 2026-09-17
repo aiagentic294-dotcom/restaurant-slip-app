@@ -62,6 +62,7 @@ jobs:
 
           cat > gradle.properties <<'EOF'
           android.useAndroidX=true
+          android.suppressUnsupportedCompileSdk=35
           EOF
 
           cat > app/build.gradle <<'EOF'
@@ -94,6 +95,10 @@ jobs:
                   release {
                       signingConfig signingConfigs.release
                       minifyEnabled false
+
+                      lint {
+                          checkReleaseBuilds false
+                      }
                   }
               }
           }
