@@ -1,10 +1,10 @@
-name: Minimal Android Release APK Test
+name: Minimal Android Old Target APK Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-minimal-release-apk:
+  build-minimal-old-target-apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +27,7 @@ jobs:
       - name: Create Minimal Android Project
         run: |
           rm -rf "$RUNNER_TEMP/minimal-test"
+
           mkdir -p "$RUNNER_TEMP/minimal-test/app/src/main/java/com/example/minimaltest"
           mkdir -p "$RUNNER_TEMP/minimal-test/app/src/main/res/values"
 
@@ -49,7 +50,7 @@ jobs:
               }
           }
 
-          rootProject.name = "MinimalAndroidTest"
+          rootProject.name = "MinimalOldTargetTest"
           include(":app")
           EOF
 
@@ -75,7 +76,7 @@ jobs:
               defaultConfig {
                   applicationId "com.example.minimaltest"
                   minSdk 23
-                  targetSdk 35
+                  targetSdk 28
                   versionCode 1
                   versionName "1.0"
               }
@@ -103,7 +104,7 @@ jobs:
 
               <application
                   android:theme="@style/AppTheme"
-                  android:label="Minimal Release Test">
+                  android:label="Minimal Old Target Test">
 
                   <activity
                       android:name=".MainActivity"
@@ -147,7 +148,7 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   TextView textView = new TextView(this);
-                  textView.setText("Minimal Release Test");
+                  textView.setText("Minimal Old Target Test");
                   textView.setTextSize(24);
                   textView.setTextColor(Color.BLACK);
                   textView.setGravity(Gravity.CENTER);
@@ -168,39 +169,32 @@ jobs:
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -dname "CN=Minimal Release Test, O=Test, C=US"
+            -dname "CN=Minimal Old Target Test, O=Test, C=US"
 
       - name: Build Release APK
         working-directory: ${{ runner.temp }}/minimal-test
         run: |
           gradle assembleRelease --no-daemon
 
-      - name: Check Release APK
+      - name: Check APK
         working-directory: ${{ runner.temp }}/minimal-test
         run: |
-          echo "========== RELEASE APK =========="
+          echo "========== APK =========="
           ls -lh app/build/outputs/apk/release/app-release.apk
-          file app/build/outputs/apk/release/app-release.apk
 
-      - name: Inspect Release APK Signing Certificate
+      - name: Inspect APK
         working-directory: ${{ runner.temp }}/minimal-test
         run: |
-          echo "========== RELEASE APK SIGNING CERTIFICATE =========="
+          echo "========== APK SIGNATURE =========="
 
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" \
             -name apksigner -type f | sort -V | tail -1)
 
-          echo "Using apksigner:"
-          echo "$APKSIGNER"
-
-          echo ""
-          echo "Certificate information:"
-
           "$APKSIGNER" verify --verbose --print-certs \
             app/build/outputs/apk/release/app-release.apk
 
-      - name: Upload Release APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: minimal-release-test-apk
+          name: minimal-old-target-test-apk
           path: ${{ runner.temp }}/minimal-test/app/build/outputs/apk/release/app-release.apk
