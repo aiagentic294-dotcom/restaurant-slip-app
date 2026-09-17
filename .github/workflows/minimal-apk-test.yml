@@ -1,10 +1,10 @@
-name: Minimal Android APK Test
+name: Minimal Android Release APK Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-minimal-apk:
+  build-minimal-release-apk:
     runs-on: ubuntu-latest
 
     steps:
@@ -71,6 +71,22 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
+
+              signingConfigs {
+                  release {
+                      storeFile file("${rootProject.projectDir}/release-test.keystore")
+                      storePassword "testpassword123"
+                      keyAlias "releasekey"
+                      keyPassword "testpassword123"
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
           }
           EOF
 
@@ -79,7 +95,7 @@ jobs:
 
               <application
                   android:theme="@style/AppTheme"
-                  android:label="Minimal Android Test">
+                  android:label="Minimal Release Test">
 
                   <activity
                       android:name=".MainActivity"
@@ -123,8 +139,7 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   TextView textView = new TextView(this);
-
-                  textView.setText("Minimal Android Test");
+                  textView.setText("Minimal Release Test");
                   textView.setTextSize(24);
                   textView.setTextColor(Color.BLACK);
                   textView.setGravity(Gravity.CENTER);
@@ -134,33 +149,45 @@ jobs:
           }
           EOF
 
-      - name: Download Gradle 8.7
+      - name: Install Gradle
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
-          unzip -q gradle-8.7-bin.zip
-          echo "$PWD/gradle-8.7/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y gradle
 
-      - name: Check Gradle
+      - name: Create Gradle wrapper
         working-directory: minimal-test
         run: |
-          gradle --version
+          gradle wrapper --gradle-version 8.7
 
-      - name: Build Minimal APK
+      - name: Generate release signing key
         working-directory: minimal-test
         run: |
-          gradle assembleDebug --no-daemon
+          keytool -genkeypair \
+            -keystore release-test.keystore \
+            -storepass testpassword123 \
+            -keypass testpassword123 \
+            -alias releasekey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Minimal Release Test, O=Test, C=US"
 
-      - name: Check APK
+      - name: Build release APK
         working-directory: minimal-test
         run: |
-          echo "========== APK FILE =========="
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
-          file app/build/outputs/apk/debug/app-debug.apk
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Inspect Minimal APK Signing Certificate
+      - name: Check release APK
         working-directory: minimal-test
         run: |
-          echo "========== MINIMAL APK SIGNING CERTIFICATE =========="
+          echo "========== RELEASE APK =========="
+          ls -lh app/build/outputs/apk/release/app-release.apk
+          file app/build/outputs/apk/release/app-release.apk
+
+      - name: Inspect release APK signing certificate
+        working-directory: minimal-test
+        run: |
+          echo "========== RELEASE APK SIGNING CERTIFICATE =========="
 
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" \
             -name apksigner -type f | sort -V | tail -1)
@@ -172,10 +199,10 @@ jobs:
           echo "Certificate information:"
 
           "$APKSIGNER" verify --verbose --print-certs \
-            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release.apk
 
-      - name: Upload Minimal APK
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: minimal-test-apk
-          path: minimal-test/app/build/outputs/apk/debug/app-debug.apk
+          name: minimal-release-test-apk
+          path: minimal-test/app/build/outputs/apk/release/app-release.apk
