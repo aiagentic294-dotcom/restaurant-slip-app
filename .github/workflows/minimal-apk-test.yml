@@ -4,11 +4,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-minimal-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup Java 17
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -16,10 +19,9 @@ jobs:
 
       - name: Create minimal Android project
         run: |
-          mkdir -p minimal-app/app/src/main/java/com/test/minimal
-          mkdir -p minimal-app/app/src/main/res/values
+          mkdir -p app/src/main/java/com/example/minimaltest
 
-          cat > minimal-app/settings.gradle <<'EOF'
+          cat > settings.gradle <<'EOF'
           pluginManagement {
               repositories {
                   google()
@@ -36,41 +38,45 @@ jobs:
               }
           }
 
-          rootProject.name = "MinimalTest"
-          include ":app"
+          rootProject.name = "MinimalAndroidTest"
+          include ':app'
           EOF
 
-          cat > minimal-app/build.gradle <<'EOF'
+          cat > build.gradle <<'EOF'
           plugins {
               id 'com.android.application' version '8.5.2' apply false
           }
           EOF
 
-          cat > minimal-app/app/build.gradle <<'EOF'
+          cat > gradle.properties <<'EOF'
+          android.useAndroidX=true
+          EOF
+
+          cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
           }
 
           android {
-              namespace 'com.test.minimal'
+              namespace 'com.example.minimaltest'
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.test.minimal'
+                  applicationId 'com.example.minimaltest"
                   minSdk 23
                   targetSdk 35
                   versionCode 1
-                  versionName '1.0'
+                  versionName "1.0"
               }
           }
           EOF
 
-          cat > minimal-app/app/src/main/AndroidManifest.xml <<'EOF'
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
                   android:theme="@style/AppTheme"
-                  android:label="Minimal Test">
+                  android:label="Minimal Android Test">
 
                   <activity
                       android:name=".MainActivity"
@@ -88,65 +94,75 @@ jobs:
           </manifest>
           EOF
 
-          cat > minimal-app/app/src/main/res/values/styles.xml <<'EOF'
+          mkdir -p app/src/main/res/values
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
               <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
-                  <item name="android:colorAccent">#000000</item>
+                  <item name="android:gravity">center</item>
               </style>
           </resources>
           EOF
 
-          cat > minimal-app/app/src/main/java/com/test/minimal/MainActivity.java <<'EOF'
-          package com.test.minimal;
+          cat > app/src/main/java/com/example/minimaltest/MainActivity.java <<'EOF'
+          package com.example.minimaltest;
 
           import android.app.Activity;
           import android.os.Bundle;
+          import android.graphics.Color;
+          import android.view.Gravity;
           import android.widget.TextView;
 
           public class MainActivity extends Activity {
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  TextView text = new TextView(this);
-                  text.setText("Minimal Android Test");
-                  text.setTextSize(24);
-                  text.setPadding(40, 40, 40, 40);
+                  TextView textView = new TextView(this);
 
-                  setContentView(text);
+                  textView.setText("Minimal Android Test");
+                  textView.setTextSize(24);
+                  textView.setTextColor(Color.BLACK);
+                  textView.setGravity(Gravity.CENTER);
+
+                  setContentView(textView);
               }
           }
           EOF
 
-      - name: Download Gradle
+      - name: Fix Gradle wrapper
         run: |
-          cd minimal-app
-          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
-          unzip -q gradle-8.7-bin.zip
-          mv gradle-8.7 gradle
-          rm gradle-8.7-bin.zip
+          gradle wrapper --gradle-version 8.7
 
       - name: Build minimal APK
-        working-directory: minimal-app
-        run: ./gradle/bin/gradle assembleDebug
-
-      - name: Inspect APK
         run: |
-          APK="minimal-app/app/build/outputs/apk/debug/app-debug.apk"
+          ./gradlew assembleDebug
 
-          echo "========== MINIMAL APK =========="
-          ls -lh "$APK"
-          file "$APK"
+      - name: Check APK file
+        run: |
+          echo "========== APK FILE =========="
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+          file app/build/outputs/apk/debug/app-debug.apk
 
-          AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)
+      - name: Inspect Minimal APK signing certificate
+        run: |
+          echo "========== MINIMAL APK SIGNING CERTIFICATE =========="
+
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+
+          echo "Using apksigner:"
+          echo "$APKSIGNER"
 
           echo ""
-          echo "========== BADGING =========="
-          "$AAPT2" dump badging "$APK"
+          echo "Certificate information:"
 
-      - name: Upload minimal APK
+          "$APKSIGNER" verify --verbose --print-certs \
+            app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Minimal APK
         uses: actions/upload-artifact@v4
         with:
           name: minimal-test-apk
-          path: minimal-app/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
