@@ -17,10 +17,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Create minimal Android project
+      - name: Create Minimal Android Project
         run: |
-          mkdir -p app/src/main/java/com/example/minimaltest
-          mkdir -p app/src/main/res/values
+          mkdir -p minimal-test/app/src/main/java/com/example/minimaltest
+          mkdir -p minimal-test/app/src/main/res/values
+
+          cd minimal-test
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -40,7 +42,7 @@ jobs:
           }
 
           rootProject.name = "MinimalAndroidTest"
-          include ':app'
+          include(":app")
           EOF
 
           cat > build.gradle <<'EOF'
@@ -97,7 +99,8 @@ jobs:
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+              <style name="AppTheme"
+                  parent="android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
                   <item name="android:gravity">center</item>
               </style>
@@ -131,30 +134,36 @@ jobs:
           }
           EOF
 
-      - name: Install Gradle
+      - name: Download Gradle 8.7
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip
+          echo "$PWD/gradle-8.7/bin" >> "$GITHUB_PATH"
 
-      - name: Create Gradle wrapper
+      - name: Check Gradle
+        working-directory: minimal-test
         run: |
-          gradle wrapper --gradle-version 8.7
+          gradle --version
 
-      - name: Build minimal APK
+      - name: Build Minimal APK
+        working-directory: minimal-test
         run: |
-          ./gradlew assembleDebug
+          gradle assembleDebug --no-daemon
 
-      - name: Check APK file
+      - name: Check APK
+        working-directory: minimal-test
         run: |
           echo "========== APK FILE =========="
           ls -lh app/build/outputs/apk/debug/app-debug.apk
           file app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Inspect Minimal APK signing certificate
+      - name: Inspect Minimal APK Signing Certificate
+        working-directory: minimal-test
         run: |
           echo "========== MINIMAL APK SIGNING CERTIFICATE =========="
 
-          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" \
+            -name apksigner -type f | sort -V | tail -1)
 
           echo "Using apksigner:"
           echo "$APKSIGNER"
@@ -169,4 +178,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: minimal-test-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: minimal-test/app/build/outputs/apk/debug/app-debug.apk
