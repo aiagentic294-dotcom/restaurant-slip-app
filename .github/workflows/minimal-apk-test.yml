@@ -8,21 +8,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      - name: Download Gradle 8.7
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip
+          echo "$GITHUB_WORKSPACE/gradle-8.7/bin" >> "$GITHUB_PATH"
+
+      - name: Check Gradle
+        run: |
+          gradle --version
+
       - name: Create Minimal Android Project
         run: |
-          mkdir -p minimal-test/app/src/main/java/com/example/minimaltest
-          mkdir -p minimal-test/app/src/main/res/values
+          rm -rf "$RUNNER_TEMP/minimal-test"
+          mkdir -p "$RUNNER_TEMP/minimal-test/app/src/main/java/com/example/minimaltest"
+          mkdir -p "$RUNNER_TEMP/minimal-test/app/src/main/res/values"
 
-          cd minimal-test
+          cd "$RUNNER_TEMP/minimal-test"
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -149,18 +157,8 @@ jobs:
           }
           EOF
 
-      - name: Install Gradle
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
-
-      - name: Create Gradle wrapper
-        working-directory: minimal-test
-        run: |
-          gradle wrapper --gradle-version 8.7
-
-      - name: Generate release signing key
-        working-directory: minimal-test
+      - name: Generate Release Signing Key
+        working-directory: ${{ runner.temp }}/minimal-test
         run: |
           keytool -genkeypair \
             -keystore release-test.keystore \
@@ -172,20 +170,20 @@ jobs:
             -validity 10000 \
             -dname "CN=Minimal Release Test, O=Test, C=US"
 
-      - name: Build release APK
-        working-directory: minimal-test
+      - name: Build Release APK
+        working-directory: ${{ runner.temp }}/minimal-test
         run: |
-          ./gradlew assembleRelease --no-daemon
+          gradle assembleRelease --no-daemon
 
-      - name: Check release APK
-        working-directory: minimal-test
+      - name: Check Release APK
+        working-directory: ${{ runner.temp }}/minimal-test
         run: |
           echo "========== RELEASE APK =========="
           ls -lh app/build/outputs/apk/release/app-release.apk
           file app/build/outputs/apk/release/app-release.apk
 
-      - name: Inspect release APK signing certificate
-        working-directory: minimal-test
+      - name: Inspect Release APK Signing Certificate
+        working-directory: ${{ runner.temp }}/minimal-test
         run: |
           echo "========== RELEASE APK SIGNING CERTIFICATE =========="
 
@@ -201,8 +199,8 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs \
             app/build/outputs/apk/release/app-release.apk
 
-      - name: Upload release APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: minimal-release-test-apk
-          path: minimal-test/app/build/outputs/apk/release/app-release.apk
+          path: ${{ runner.temp }}/minimal-test/app/build/outputs/apk/release/app-release.apk
