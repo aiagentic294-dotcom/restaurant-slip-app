@@ -20,6 +20,7 @@ jobs:
       - name: Create minimal Android project
         run: |
           mkdir -p app/src/main/java/com/example/minimaltest
+          mkdir -p app/src/main/res/values
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -62,7 +63,7 @@ jobs:
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.example.minimaltest"
+                  applicationId "com.example.minimaltest"
                   minSdk 23
                   targetSdk 35
                   versionCode 1
@@ -93,8 +94,6 @@ jobs:
 
           </manifest>
           EOF
-
-          mkdir -p app/src/main/res/values
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
@@ -132,7 +131,12 @@ jobs:
           }
           EOF
 
-      - name: Fix Gradle wrapper
+      - name: Install Gradle
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gradle
+
+      - name: Create Gradle wrapper
         run: |
           gradle wrapper --gradle-version 8.7
 
